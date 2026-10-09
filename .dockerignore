@@ -1,0 +1,13 @@
+.git
+.github
+.pytest_cache
+__pycache__
+*.py[cod]
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.json
+!sample_input.json
+tests
+

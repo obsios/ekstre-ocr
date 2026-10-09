@@ -1,0 +1,7 @@
+runpod==1.10.1
+paddleocr==3.7.0
+onnxruntime-gpu==1.23.2
+PyMuPDF==1.25.5
+Pillow==11.0.0
+requests==2.34.2
+numpy==2.2.2
