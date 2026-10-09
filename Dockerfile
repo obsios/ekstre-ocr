@@ -7,7 +7,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PADDLE_PDX_CACHE_HOME=/opt/paddlex-cache \
     OCR_DEVICE=gpu:0 \
     OCR_RECOGNITION_BATCH_SIZE=8 \
-    OCR_PAGE_BATCH_SIZE=8 \
     OCR_DPI=300 \
     MAX_DOCUMENT_MB=35 \
     MAX_PAGES=100
