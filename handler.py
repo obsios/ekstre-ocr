@@ -9,6 +9,7 @@ import runpod
 from input_loader import _positive_int, load_document, render_pages
 from ocr_engine import (
     DETECTION_MODEL,
+    PAGE_BATCH_SIZE,
     RECOGNITION_BATCH_SIZE,
     RECOGNITION_MODEL,
     PaddleOcrService,
@@ -42,7 +43,7 @@ def handler(event: dict[str, Any]) -> dict[str, Any]:
     render_seconds = time.perf_counter() - render_started
 
     ocr_started = time.perf_counter()
-    pages = [OCR.recognize(image, index) for index, image in enumerate(images, 1)]
+    pages = OCR.recognize_many(images)
     ocr_seconds = time.perf_counter() - ocr_started
 
     return {
@@ -51,6 +52,7 @@ def handler(event: dict[str, Any]) -> dict[str, Any]:
             "detection_model": DETECTION_MODEL,
             "recognition_model": RECOGNITION_MODEL,
             "recognition_batch_size": RECOGNITION_BATCH_SIZE,
+            "page_batch_size": PAGE_BATCH_SIZE,
             "device": OCR.device,
             "providers": OCR.providers,
             "worker_model_load_seconds": OCR.load_seconds,
@@ -74,4 +76,3 @@ def handler(event: dict[str, Any]) -> dict[str, Any]:
 
 
 runpod.serverless.start({"handler": handler})
-

@@ -13,6 +13,7 @@ from paddleocr import PaddleOCR
 DETECTION_MODEL = os.getenv("OCR_DETECTION_MODEL", "PP-OCRv6_small_det")
 RECOGNITION_MODEL = os.getenv("OCR_RECOGNITION_MODEL", "PP-OCRv6_small_rec")
 RECOGNITION_BATCH_SIZE = int(os.getenv("OCR_RECOGNITION_BATCH_SIZE", "8"))
+PAGE_BATCH_SIZE = int(os.getenv("OCR_PAGE_BATCH_SIZE", "8"))
 OCR_DEVICE = os.getenv("OCR_DEVICE", "gpu:0")
 ALLOW_CPU_FALLBACK = os.getenv("ALLOW_CPU_FALLBACK", "0") == "1"
 
@@ -70,16 +71,16 @@ class PaddleOcrService:
         )
         self.load_seconds = round(time.perf_counter() - started, 3)
 
-    def recognize(self, image: np.ndarray, page_number: int) -> dict[str, Any]:
-        started = time.perf_counter()
-        with self._lock:
-            predictions = list(self.engine.predict(image))
-        if len(predictions) != 1:
-            raise RuntimeError(
-                f"Expected one OCR result for page {page_number}, got {len(predictions)}."
-            )
-
-        result = _json_value(predictions[0])
+    def _page_result(
+        self,
+        image: np.ndarray,
+        page_number: int,
+        prediction: Any,
+        *,
+        ocr_seconds: float,
+        timing_scope: str,
+    ) -> dict[str, Any]:
+        result = _json_value(prediction)
         texts = list(result.get("rec_texts") or [])
         scores = list(result.get("rec_scores") or [])
         polygons = result.get("rec_polys")
@@ -114,6 +115,57 @@ class PaddleOcrService:
             "text": "\n".join(word["text"] for word in words),
             "words": words,
             "word_count": len(words),
-            "ocr_seconds": round(time.perf_counter() - started, 3),
+            "ocr_seconds": round(ocr_seconds, 3),
+            "ocr_timing_scope": timing_scope,
         }
 
+    def recognize(self, image: np.ndarray, page_number: int) -> dict[str, Any]:
+        started = time.perf_counter()
+        with self._lock:
+            predictions = list(self.engine.predict(image))
+        elapsed = time.perf_counter() - started
+        if len(predictions) != 1:
+            raise RuntimeError(
+                f"Expected one OCR result for page {page_number}, got {len(predictions)}."
+            )
+        return self._page_result(
+            image,
+            page_number,
+            predictions[0],
+            ocr_seconds=elapsed,
+            timing_scope="page",
+        )
+
+    def recognize_many(self, images: list[np.ndarray]) -> list[dict[str, Any]]:
+        if not images:
+            return []
+        if PAGE_BATCH_SIZE < 1:
+            raise RuntimeError("OCR_PAGE_BATCH_SIZE must be at least 1.")
+
+        pages: list[dict[str, Any]] = []
+        for offset in range(0, len(images), PAGE_BATCH_SIZE):
+            batch = images[offset : offset + PAGE_BATCH_SIZE]
+            started = time.perf_counter()
+            with self._lock:
+                predictions = list(self.engine.predict(batch))
+            elapsed = time.perf_counter() - started
+            if len(predictions) != len(batch):
+                raise RuntimeError(
+                    "Expected one OCR result per page in the batch; "
+                    f"expected {len(batch)}, got {len(predictions)}."
+                )
+
+            average_seconds = elapsed / len(batch)
+            pages.extend(
+                self._page_result(
+                    image,
+                    offset + index,
+                    prediction,
+                    ocr_seconds=average_seconds,
+                    timing_scope="batch_average",
+                )
+                for index, (image, prediction) in enumerate(
+                    zip(batch, predictions), start=1
+                )
+            )
+        return pages

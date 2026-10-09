@@ -40,6 +40,11 @@ Her sayfa icin su alanlar doner:
 - `width`, `height`, `ocr_seconds`
 - belge SHA-256, sayfa sayisi ve toplam sureler
 
+Birden fazla sayfa ayni OCR modeliyle toplu islenir. `ocr_seconds` toplu islemde
+sayfa basina dusen ortalama suredir; `ocr_timing_scope` alani bunu
+`batch_average` olarak belirtir. Kesin toplam OCR suresi `timing.ocr_seconds`
+alanindadir. Varsayilan sayfa grubu `OCR_PAGE_BATCH_SIZE=8` ile degistirilebilir.
+
 ## GitHub Actions ile imaj olusturma
 
 1. Bu klasorun **icerigini** yeni bir GitHub reposunun kokune koyun.
@@ -81,4 +86,3 @@ python -m unittest discover -s tests -v
 Gercek OCR testi GitHub Actions imaji tamamlandiktan sonra Runpod'a gercek bir
 ekstre gonderilerek yapilmalidir. Endpoint `ready` gorunmesi tek basina yeterli
 bir test degildir.
-
